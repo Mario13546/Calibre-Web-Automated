@@ -68,7 +68,7 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log("Redirecting to: ", `${window.BOOK_URL}${startLocation || ''}`);
 
             window.location.href = `${window.BOOK_URL}${startLocation || ''}`;
-        }, 500);
+        }, 1000);
     });
 
     // Save progress whenever the custom `locationchange` event is fired
