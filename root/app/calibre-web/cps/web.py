@@ -26,15 +26,15 @@ import copy
 import importlib
 
 # CWA Imports
-import sqlite3
 import json
+import sqlite3
+import datetime
 
 from flask import Blueprint, jsonify
 from flask import request, redirect, send_from_directory, make_response, flash, abort, url_for, Response
 from flask import session as flask_session
 from flask_babel import gettext as _
 from flask_babel import get_locale
-from .cw_login import login_user, logout_user, current_user
 from flask_limiter import RateLimitExceeded
 from flask_limiter.util import get_remote_address
 from sqlalchemy.exc import IntegrityError, InvalidRequestError, OperationalError
@@ -48,6 +48,7 @@ from . import constants, logger, isoLanguages, services
 from . import db, ub, config, app
 from . import calibre_db, kobo_sync_status
 from .search import render_search_results, render_adv_search_results
+from .cw_login import login_user, logout_user, current_user
 from .gdriveutils import getFileFromEbooksFolder, do_gdrive_download
 from .helper import check_valid_domain, check_email, check_username, \
     get_book_cover, get_series_cover_thumbnail, get_download_link, send_mail, generate_random_password, \
@@ -1768,3 +1769,45 @@ def profile_pictures():
     return render_title_template("profile_pictures.html", 
                                  title=_("Profile Picture Management"), 
                                  page="profilepictures")
+
+@web.route("/progress", methods=["GET", "POST"])
+@user_login_required
+def handle_progress():
+    if request.method == "GET":
+        user_id = request.args.get("user_id", type=int)
+        book_id = request.args.get("book_id", type=int)
+
+        if user_id is None or book_id is None:
+            return jsonify({"error": "Missing user_id or book_id"}), 400
+
+        progress = ub.session.query(ub.ReadingProgress).filter_by(user_id=user_id, book_id=book_id).first()
+        return jsonify({
+            "location": progress.last_read_location if progress else None
+        }), 200
+
+    elif request.method == "POST":
+        if not request.is_json:
+            return jsonify({"error": "Request must be JSON"}), 400
+
+        data = request.get_json()
+
+        try:
+            user_id = int(data.get("user_id"))
+            book_id = int(data.get("book_id"))
+            location = str(data.get("location"))
+        except (TypeError, ValueError):
+            return jsonify({"error": "Invalid or missing fields"}), 400
+
+        if not location:
+            return jsonify({"error": "Location is required"}), 400
+
+        # Save or update progress
+        progress = ub.session.query(ub.ReadingProgress).filter_by(user_id=user_id, book_id=book_id).first()
+        if progress:
+            progress.last_read_location = location
+        else:
+            progress = ub.ReadingProgress(user_id=user_id, book_id=book_id, last_read_location=location, last_updated=datetime.datetime.utcnow())
+            ub.session.add(progress)
+
+        ub.session.commit()
+        return jsonify({"status": "success"}), 200

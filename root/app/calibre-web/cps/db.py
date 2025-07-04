@@ -58,41 +58,47 @@ cc_classes = {}
 
 Base = declarative_base()
 
-books_authors_link = Table('books_authors_link', Base.metadata,
-                           Column('book', Integer, ForeignKey('books.id'), primary_key=True),
-                           Column('author', Integer, ForeignKey('authors.id'), primary_key=True)
-                           )
+books_authors_link = Table(
+    'books_authors_link', Base.metadata,
+    Column('book', Integer, ForeignKey('books.id'), primary_key=True),
+    Column('author', Integer, ForeignKey('authors.id'), primary_key=True)
+)
 
-books_tags_link = Table('books_tags_link', Base.metadata,
-                        Column('book', Integer, ForeignKey('books.id'), primary_key=True),
-                        Column('tag', Integer, ForeignKey('tags.id'), primary_key=True)
-                        )
+books_tags_link = Table(
+    'books_tags_link', Base.metadata,
+    Column('book', Integer, ForeignKey('books.id'), primary_key=True),
+    Column('tag', Integer, ForeignKey('tags.id'), primary_key=True)
+)
 
-books_series_link = Table('books_series_link', Base.metadata,
-                          Column('book', Integer, ForeignKey('books.id'), primary_key=True),
-                          Column('series', Integer, ForeignKey('series.id'), primary_key=True)
-                          )
+books_series_link = Table(
+    'books_series_link', Base.metadata,
+    Column('book', Integer, ForeignKey('books.id'), primary_key=True),
+    Column('series', Integer, ForeignKey('series.id'), primary_key=True)
+)
 
-books_ratings_link = Table('books_ratings_link', Base.metadata,
-                           Column('book', Integer, ForeignKey('books.id'), primary_key=True),
-                           Column('rating', Integer, ForeignKey('ratings.id'), primary_key=True)
-                           )
+books_ratings_link = Table(
+    'books_ratings_link', Base.metadata,
+    Column('book', Integer, ForeignKey('books.id'), primary_key=True),
+    Column('rating', Integer, ForeignKey('ratings.id'), primary_key=True)
+)
 
-books_languages_link = Table('books_languages_link', Base.metadata,
-                             Column('book', Integer, ForeignKey('books.id'), primary_key=True),
-                             Column('lang_code', Integer, ForeignKey('languages.id'), primary_key=True)
-                             )
+books_languages_link = Table(
+    'books_languages_link', Base.metadata,
+    Column('book', Integer, ForeignKey('books.id'), primary_key=True),
+    Column('lang_code', Integer, ForeignKey('languages.id'), primary_key=True)
+)
 
-books_publishers_link = Table('books_publishers_link', Base.metadata,
-                              Column('book', Integer, ForeignKey('books.id'), primary_key=True),
-                              Column('publisher', Integer, ForeignKey('publishers.id'), primary_key=True)
-                              )
+books_publishers_link = Table(
+    'books_publishers_link', Base.metadata,
+    Column('book', Integer, ForeignKey('books.id'), primary_key=True),
+    Column('publisher', Integer, ForeignKey('publishers.id'), primary_key=True)
+)
 
 
 class Library_Id(Base):
     __tablename__ = 'library_id'
     id = Column(Integer, primary_key=True)
-    uuid = Column(String, nullable=False)
+    uuid = Column(String, nullable=False) 
 
 
 class Identifiers(Base):

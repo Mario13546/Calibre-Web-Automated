@@ -40,7 +40,7 @@ except ImportError as e:
     except ImportError as e:
         OAuthConsumerMixin = BaseException
         oauth_support = False
-from sqlalchemy import create_engine, exc, exists, event, text
+from sqlalchemy import create_engine, exc, exists, event, text, UniqueConstraint
 from sqlalchemy import Column, ForeignKey
 from sqlalchemy import String, Integer, SmallInteger, Boolean, DateTime, Float, JSON
 from sqlalchemy.orm.attributes import flag_modified
@@ -424,6 +424,16 @@ class ReadBook(Base):
     last_time_started_reading = Column(DateTime, nullable=True)
     times_started_reading = Column(Integer, default=0, nullable=False)
 
+class ReadingProgress(Base):
+    __tablename__ = "reading_progress"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False)
+    book_id = Column(Integer, nullable=False)
+    last_read_location = Column(String, nullable=False)
+    last_updated = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint('user_id', 'book_id', name='_user_book_uc'),)
 
 class Bookmark(Base):
     __tablename__ = 'bookmark'
