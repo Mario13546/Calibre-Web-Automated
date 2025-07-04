@@ -20,7 +20,7 @@ function getCurrentCFI() {
     const hash = window.location.hash;
     const cfi  = hash.startsWith("#") ? hash.slice(1) : hash;
 
-    return hash;
+    return cfi;
 }
 
 /**
@@ -32,6 +32,8 @@ function saveProgress() {
         console.warn("No valid CFI found in location hash.");
         return;
     }
+
+    console.log("saving progress at:", cfi);
 
     const payload = JSON.stringify({
         user_id: userId,
@@ -64,11 +66,8 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log("No saved progress found.");
         }
 
-        setTimeout(() => {
-            console.log("Redirecting to: ", `${window.BOOK_URL}${startLocation || ''}`);
-
-            window.location.href = `${window.BOOK_URL}${startLocation || ''}`;
-        }, 1000);
+        reader.rendition.display(startLocation || '');
+        // reader.rendition.start();
     });
 
     // Save progress whenever the custom `locationchange` event is fired
