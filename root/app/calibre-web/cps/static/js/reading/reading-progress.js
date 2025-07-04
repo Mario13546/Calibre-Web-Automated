@@ -67,7 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         reader.rendition.display(startLocation || '');
-        // reader.rendition.start();
+        reader.rendition.start();
     });
 
     // Save progress whenever the custom `locationchange` event is fired
