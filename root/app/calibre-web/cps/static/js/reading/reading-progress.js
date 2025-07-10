@@ -33,7 +33,7 @@ function saveProgress() {
         return;
     }
 
-    console.log("saving progress at:", cfi);
+    console.log("Saving at:", cfi);
 
     const payload = JSON.stringify({
         user_id: userId,
@@ -61,13 +61,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const startLocation = data.location || undefined;
 
         if (startLocation) {
-            console.log("Restoring to location:", startLocation);
+            console.log("Restoring to:", startLocation);
         } else {
             console.log("No saved progress found.");
         }
 
         reader.rendition.display(startLocation || '');
-        reader.rendition.start();
     });
 
     // Save progress whenever the custom `locationchange` event is fired
@@ -76,5 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // Optional: save progress if user leaves the page
-    window.addEventListener("beforeunload", saveProgress);
+    window.addEventListener("beforeunload", () => {
+        saveProgress();
+    });
 });

@@ -24,7 +24,7 @@ SHELL ["/bin/bash", "-c"]
 # --tag crocodilestick/calibre-web-automated:latest .
 
 ARG BUILD_DATE
-ARG VERSION
+ARG VERSION=V3.0.4
 ARG CALIBREWEB_RELEASE=0.6.24
 ARG LSCW_RELEASE=0.6.24-ls304
 ARG CALIBRE_RELEASE=8.4.0

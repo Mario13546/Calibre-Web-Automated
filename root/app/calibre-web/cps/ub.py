@@ -431,6 +431,7 @@ class ReadingProgress(Base):
     user_id = Column(Integer, nullable=False)
     book_id = Column(Integer, nullable=False)
     last_read_location = Column(String, nullable=False)
+    percent_read = Column(Float, nullable=True)
     last_updated = Column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (UniqueConstraint('user_id', 'book_id', name='_user_book_uc'),)
