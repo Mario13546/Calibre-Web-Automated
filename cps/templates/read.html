@@ -216,6 +216,14 @@
       <script src="{{ url_for('static', filename='js/libs/screenfull.min.js') }}"></script>
       <script src="{{ url_for('static', filename='js/libs/reader.min.js') }}"></script>
       <script src="{{ url_for('static', filename='js/reading/epub.js') }}"></script>
-      <script src="{{ url_for('static', filename='js/reading/epub-progress.js') }}"></script>      
+      <script src="{{ url_for('static', filename='js/reading/epub-progress.js') }}"></script>
+
+      <script>
+          window.USER_ID    = "{{ current_user.id }}";
+          window.BOOK_ID    = "{{ bookid }}";
+          window.BOOK_URL   = "/read/{{ bookid }}/epub";
+          window.BOOK_TITLE = "{{ title }}";
+      </script>
+      <script src="{{ url_for('static', filename='js/reading/reading-progress.js') }}"></script>
     </body>
 </html>

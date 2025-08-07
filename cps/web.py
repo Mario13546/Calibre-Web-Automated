@@ -26,12 +26,16 @@ import copy
 import importlib
 
 # CWA Imports
-import sqlite3
+import json
+import pytz
 import time
+import sqlite3
+import datetime
 
 from flask import Blueprint, jsonify
 from flask import request, redirect, send_from_directory, make_response, flash, abort, url_for, Response
 from flask import session as flask_session
+from flask_wtf.csrf import generate_csrf
 from flask_babel import gettext as _
 from flask_babel import get_locale
 from .cw_login import login_user, logout_user, current_user
@@ -45,7 +49,7 @@ from werkzeug.datastructures import Headers
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from . import constants, logger, isoLanguages, services
-from . import db, ub, config, app
+from . import db, ub, config, app, csrf
 from . import calibre_db, kobo_sync_status
 from .search import render_search_results, render_adv_search_results
 from .gdriveutils import getFileFromEbooksFolder, do_gdrive_download
@@ -1725,3 +1729,68 @@ def show_book(book_id):
         flash(_("Oops! Selected book is unavailable. File does not exist or is not accessible"),
               category="error")
         return redirect(url_for("web.index"))
+
+@web.route("/progress", methods=["GET", "POST"])
+@user_login_required
+@csrf.exempt
+def handle_progress():
+    if request.method == "GET":
+        user_id = request.args.get("user_id", type=int)
+        book_id = request.args.get("book_id", type=int)
+
+        if user_id is None or book_id is None:
+            return jsonify({"error": "Missing user_id or book_id"}), 400
+
+        progress = ub.session.query(ub.ReadingProgress).filter_by(user_id=user_id, book_id=book_id).first()
+        return jsonify({
+            "location": progress.last_read_location if progress else None,
+            "percent_read": progress.percent_read if progress else None
+        }), 200
+
+    elif request.method == "POST":
+        if not request.is_json:
+            return jsonify({"error": "Request must be JSON"}), 400
+
+        data = dict(request.get_json())
+
+        try:
+            user_id      = int(data.get("user_id"))
+            book_id      = int(data.get("book_id"))
+            book_name    = str(data.get("book_name", "name_not_found"))
+            location     = str(data.get("location"))
+            percent_read = float(data.get("percent_read", 0.0))
+        except (TypeError, ValueError):
+            return jsonify({"error": "Invalid or missing fields"}), 400
+
+        if not location:
+            return jsonify({"error": "Location is required"}), 400
+
+        # Save or update progress
+        progress = ub.session.query(ub.ReadingProgress).filter_by(user_id=user_id, book_id=book_id).first()
+        if progress:
+            progress.book_name = book_name
+            progress.last_read_location = location
+            progress.percent_read = percent_read
+
+            # Update the current time in EST format
+            utc_time = pytz.utc.localize(datetime.datetime.utcnow())
+            progress.last_updated = utc_time.astimezone(pytz.timezone('US/Eastern'))
+        else:
+            progress = ub.ReadingProgress(
+                user_id=user_id,
+                book_id=book_id,
+                book_name=book_name,
+                last_read_location=location,
+                percent_read=percent_read,
+                last_updated=datetime.datetime.utcnow()
+            )
+            ub.session.add(progress)
+
+        ub.session.commit()
+        return jsonify({"status": "success"}), 200
+
+@web.route("/refresh-csrf", methods=["GET"])
+@user_login_required
+def refresh_csrf():
+    token = generate_csrf()
+    return jsonify(csrf_token=token), 200
