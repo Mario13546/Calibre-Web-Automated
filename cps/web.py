@@ -1801,6 +1801,7 @@ def handle_progress():
 
 @web.route("/refresh-csrf", methods=["GET"])
 @user_login_required
+@csrf.exempt
 def refresh_csrf():
     token = generate_csrf()
     return jsonify(csrf_token=token), 200

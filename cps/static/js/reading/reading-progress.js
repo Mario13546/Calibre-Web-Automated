@@ -52,7 +52,7 @@ async function refreshCSRFToken() {
 }
 
 /**
- * Extract the current EPUB CFI from the URL hash.
+ * Extract the current EPUB CFI.
  */
 function getCurrentCFI() {
     const cfi = reader.currentLocationCfi;
@@ -115,11 +115,15 @@ function updateProgressDisplay() {
  * Save the user's current progress to the server.
  */
 function saveReadingProgress() {
-    updateProgressDisplay();
+    try {
+        updateProgressDisplay();
+    } catch (error) {
+        console.error("Error updating progress display:", error);
+    }
 
     const cfi = getCurrentCFI();
     if (!cfi) {
-        console.warn("No valid CFI found in location hash.");
+        console.warn("No valid CFI found.");
         return;
     }
 
