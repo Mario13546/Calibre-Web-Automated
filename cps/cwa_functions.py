@@ -1,5 +1,10 @@
+# Calibre-Web Automated – fork of Calibre-Web
+# Copyright (C) 2024-2025 Calibre-Web Automated contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+# See CONTRIBUTORS for full list of authors.
+
 from flask import Blueprint, redirect, flash, url_for, request, send_from_directory, abort, jsonify, current_app
-from flask_babel import gettext as _
+from flask_babel import gettext as _, lazy_gettext as _l
 
 from . import logger, config, constants, csrf
 from .usermanagement import login_required_if_no_ano, user_login_required
@@ -57,27 +62,31 @@ DIRS_JSON = "/app/calibre-web-automated/dirs.json"
 @switch_theme.route("/cwa-switch-theme", methods=["GET", "POST"])
 @login_required_if_no_ano
 def cwa_switch_theme():
-    con = sqlite3.connect("/config/app.db")
-    cur = con.cursor()
-    current_theme = cur.execute('SELECT config_theme FROM settings;').fetchone()[0]
-
-    if current_theme == 1:
-        new_theme = 0
-    else:
-        new_theme = 1
-
-    to_save = {"config_theme":new_theme}
-
-    config.set_from_dictionary(to_save, "config_theme", int)
-    config.config_default_role = constants.selected_roles(to_save)
-    config.config_default_role &= ~constants.ROLE_ANONYMOUS
-
-    config.config_default_show = sum(int(k[5:]) for k in to_save if k.startswith('show_'))
-    if "Show_detail_random" in to_save:
-        config.config_default_show |= constants.DETAIL_RANDOM
-
-    config.save()
-    return redirect(url_for("web.index"), code=302)
+    # Switch theme for current user only
+    try:
+        # current_user.theme may not exist for old sessions before migration; default to 0
+        current = getattr(current_user, 'theme', 0)
+        new_theme = 0 if current == 1 else 1
+        from . import ub
+        user = ub.session.query(ub.User).filter(ub.User.id == current_user.id).first()
+        if user:
+            user.theme = new_theme
+            ub.session_commit()
+        else:
+            log.error("Theme switch: user not found in DB")
+    except Exception as e:
+        log.error(f"Error switching theme: {e}")
+    # Redirect back to the page user was on (fallback to index)
+    target = request.referrer or url_for("web.index")
+    # Basic safety: only allow same-host redirects
+    try:
+        from urllib.parse import urlparse
+        ref_p = urlparse(target)
+        if ref_p.netloc and ref_p.netloc != request.host:
+            target = url_for("web.index")
+    except Exception:
+        target = url_for("web.index")
+    return redirect(target, code=302)
 
 ##————————————————————————————————————————————————————————————————————————————##
 ##                                                                            ##
@@ -101,16 +110,16 @@ def refresh_library(app):
             current_app.config["library_refresh_messages"] = []
 
         if return_code == 2:
-            message = "Library Refresh 🔄 The book ingest service is already running ✋ Please wait until it has finished before trying again ⌛"
+            message = _l("Library Refresh 🔄 The book ingest service is already running ✋ Please wait until it has finished before trying again ⌛")
         elif return_code == 0:
-            message = "Library Refresh 🔄 Library refreshed & ingest process complete! ✅"
+            message = _l("Library Refresh 🔄 Library refreshed & ingest process complete! ✅")
         else:
-            message = "Library Refresh 🔄 An unexpected error occurred, check the logs ⛔"
-        
-        # Display message to user in Web UI
+            message = _l("Library Refresh 🔄 An unexpected error occurred, check the logs ⛔")
+
+        # Store lazy message objects (will be translated when converted to string)
         current_app.config["library_refresh_messages"].append(message)
-        # Print result to docker log
-        print(message.replace('Library Refresh 🔄', '[library-refresh]'), flush=True)
+        # Print result to docker log (force English by casting within temporary locale guard if desired)
+        print(str(message).replace('Library Refresh 🔄', '[library-refresh]'), flush=True)
 
 @csrf.exempt
 @library_refresh.route("/cwa-library-refresh", methods=["GET", "POST"])
@@ -125,7 +134,7 @@ def cwa_library_refresh():
     library_refresh_thread = Thread(target=refresh_library, args=(app,))
     library_refresh_thread.start()
 
-    return jsonify({"message": "Library Refresh 🔄 Checking for any books that may have been missed, please wait..."}), 200
+    return jsonify({"message": _("Library Refresh 🔄 Checking for any books that may have been missed, please wait...")}), 200
 
 @csrf.exempt
 @library_refresh.route("/cwa-library-refresh/messages", methods=["GET"])
@@ -133,10 +142,13 @@ def cwa_library_refresh():
 def get_library_refresh_messages():
     messages = current_app.config.get("library_refresh_messages", [])
 
+    # Convert lazy messages to strings (translation occurs here)
+    rendered = [str(m) for m in messages]
+
     # Clear messages after they have been retrieved
     current_app.config["library_refresh_messages"] = []
 
-    return jsonify({"messages": messages})
+    return jsonify({"messages": rendered})
 
 ##————————————————————————————————————————————————————————————————————————————##
 ##                                                                            ##
@@ -153,7 +165,7 @@ def set_cwa_settings():
     cwa_default_settings = cwa_db.cwa_default_settings
     cwa_settings = cwa_db.cwa_settings
 
-    ignorable_formats = ['azw', 'azw3', 'azw4', 'cbz',
+    ignorable_formats = ['acsm', 'azw', 'azw3', 'azw4', 'cbz',
                         'cbr', 'cb7', 'cbc', 'chm',
                         'djvu', 'docx', 'epub', 'fb2',
                         'fbz', 'html', 'htmlz', 'kepub', 'lit',
@@ -257,20 +269,20 @@ def get_cwa_stats() -> dict[str,int]:
 headers = {
     "enforcement":{
         "no_paths":[
-            "Timestamp", "Book ID", "Book Title", "Book Author", "Trigger Type"],
+            _("Timestamp"), _("Book ID"), _("Book Title"), _("Book Author"), _("Trigger Type")],
         "with_paths":[
-            "Timestamp","Book ID", "Filepath"]
+            _("Timestamp"), _("Book ID"), _("Filepath")]
         },
     "epub_fixer":{
         "no_fixes":[
-            "Timestamp", "Filename", "Manual?", "No. Fixes", "Original Backed Up?"],
+            _("Timestamp"), _("Filename"), _("Manual?"), _("No. Fixes"), _("Original Backed Up?")],
         "with_fixes":[
-            "Timestamp", "Filename", "Filepath", "Fixes Applied"]
+            _("Timestamp"), _("Filename"), _("Filepath"), _("Fixes Applied")]
         },
     "imports":[
-        "Timestamp", "Filename", "Original Backed Up?"],
+        _("Timestamp"), _("Filename"), _("Original Backed Up?")],
     "conversions":[
-        "Timestamp", "Filename", "Original Format", "End Format", "Original Backed Up?"],
+        _("Timestamp"), _("Filename"), _("Original Format"), _("End Format"), _("Original Backed Up?")],
 }
 
 @cwa_stats.route("/cwa-stats-show", methods=["GET", "POST"])

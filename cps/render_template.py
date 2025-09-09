@@ -1,20 +1,9 @@
 # -*- coding: utf-8 -*-
-
-#  This file is part of the Calibre-Web (https://github.com/janeczku/calibre-web)
-#    Copyright (C) 2018-2020 OzzieIsaacs
-#
-#  This program is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program. If not, see <http://www.gnu.org/licenses/>.
+# Calibre-Web Automated – fork of Calibre-Web
+# Copyright (C) 2018-2025 Calibre-Web contributors
+# Copyright (C) 2024-2025 Calibre-Web Automated contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+# See CONTRIBUTORS for full list of authors.
 
 from flask import render_template, g, abort, request, flash
 from flask_babel import gettext as _
@@ -28,7 +17,6 @@ from . import config, constants, logger, ub
 from .ub import User
 
 # CWA specific imports
-import requests
 from datetime import datetime
 import os.path
 
@@ -119,10 +107,12 @@ def get_sidebar_config(kwargs=None):
 # Checks if an update for CWA is available, returning True if yes
 def cwa_update_available() -> tuple[bool, str, str]:
     try:
-        with open("/app/CWA_RELEASE", 'r') as f:
-            current_version = f.read().strip()
-        response = requests.get("https://api.github.com/repos/crocodilestick/calibre-web-automated/releases/latest", timeout=3)
-        tag_name = response.json().get('tag_name', current_version)
+        current_version = constants.INSTALLED_VERSION
+        tag_name = constants.STABLE_VERSION
+
+        if current_version == "V0.0.0" or tag_name == "V0.0.0":
+            return False, "0.0.0", "0.0.0"
+
         return (tag_name != current_version), current_version, tag_name
     except Exception as e:
         print(f"[cwa-update-notification-service] Error checking for CWA updates: {e}", flush=True)

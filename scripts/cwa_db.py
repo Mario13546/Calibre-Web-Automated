@@ -1,3 +1,8 @@
+# Calibre-Web Automated – fork of Calibre-Web
+# Copyright (C) 2024-2025 Calibre-Web Automated contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+# See CONTRIBUTORS for full list of authors.
+
 import sqlite3
 import sys
 from sqlite3 import Error as sqlError

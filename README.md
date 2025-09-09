@@ -27,6 +27,21 @@
 - [Further Development](#further-development-️) 🏗️
 - [Support / Buy me a Coffee](https://ko-fi.com/crocodilestick) ☕
 
+## Why does it exist? 🔓
+
+Calibre, while a fantastic tool for its age, has several problems when containerised, including its reliance on a KasmVNC server instance for the UI, which is near impossible to use on mobile and is relatively resource-heavy if you're running a small, lower power server like I am.
+
+For many, Calibre-Web has really swooped in to save the day, offering an alternative to a containerised Calibre instance that's resource-light and with a much more modern UI to boot.
+
+However, when compared to full-fat Calibre, it unfortunately lacks a few core features leading many to run both services in parallel, each serving to fill in where the other lacks, resulting in an often clunky, imperfect solution.
+
+## Goal of the Project 🎯
+
+Calibre-Web Automated aims to be an all-in-one solution, combining the modern lightweight web UI from Calibre-Web with the robust, versatile feature set of Calibre, with a slew of extra features and automations thrown in on top.
+
+![Calibre-Web Automated Example Homepage](README_images/CWA-Homepage.png)
+<p style="text-align:center;"><i>CWA allows you to keep your ebook library accessible & organised and looks good while doing it</i> 😎🦚</p>
+
 ## _Affiliated Projects_ 👬
 
 ### Calibre-Web Automated Book Downloader
@@ -48,21 +63,6 @@ ___
 [<img src="README_images/google-play.png" alt="Get it on Google Play" height="80">](https://play.google.com/store/apps/details?id=de.doen1el.calibreWebCompanion)
 [<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="80">](https://f-droid.org/en/packages/de.doen1el.calibreWebCompanion/)
 [<img src="https://raw.githubusercontent.com/vadret/android/master/assets/get-github.png" alt="Get it on GitHub" height="80">](https://github.com/doen1el/calibre-web-companion)
-
-## Why does it exist? 🔓
-
-Calibre, while a fantastic tool for its age, has several problems when containerised, including its reliance on a KasmVNC server instance for the UI, which is near impossible to use on mobile and is relatively resource-heavy if you're running a small, lower power server like I am.
-
-For many, Calibre-Web has really swooped in to save the day, offering an alternative to a containerised Calibre instance that's resource-light and with a much more modern UI to boot.
-
-However, when compared to full-fat Calibre, it unfortunately lacks a few core features leading many to run both services in parallel, each serving to fill in where the other lacks, resulting in an often clunky, imperfect solution.
-
-## Goal of the Project 🎯
-
-Calibre-Web Automated aims to be an all-in-one solution, combining the modern lightweight web UI from Calibre-Web with the robust, versatile feature set of Calibre, with a slew of extra features and automations thrown in on top.
-
-![Calibre-Web Automated Example Homepage](README_images/CWA-Homepage.png)
-<p style="text-align:center;"><i>CWA allows you to keep your ebook library accessible & organised and looks good while doing it</i> 😎🦚</p>
 
 ## Join our Community! ❤️
 
@@ -117,7 +117,8 @@ Calibre-Web Automated aims to be an all-in-one solution, combining the modern li
   - _Available target formats include:_ **EPUB**, **MOBI**, **AZW3**, **KEPUB** & **PDF**
 - Upon detecting new files in the Ingest Directory, if any of the files are in formats the user has configured CWA to auto-convert to the current target format,
 - The following **28 file types are currently supported:**
-  - _.azw, .azw3, .azw4, .mobi, .cbz, .cbr, .cb7, .cbc, .chm, .djvu, .docx, .epub, .fb2, .fbz, .html, .htmlz, .lit, .lrf, .odt, .pdf, .prc, .pdb, .pml, .rb, .rtf, .snb, .tcr, .txtz_
+  - _.acsm, .azw, .azw3, .azw4, .mobi, .cbz, .cbr, .cb7, .cbc, .chm, .djvu, .docx, .epub, .fb2, .fbz, .html, .htmlz, .lit, .lrf, .odt, .pdf, .prc, .pdb, .pml, .rb, .rtf, .snb, .tcr, .txtz_
+  - _Note: .acsm requires an additional Calibre plugin_
 
 #### **Automatic Enforcement of Changes made to Covers & Metadata through the Calibre-Web UI!** 👀📔
 - In stock Calibre-Web, any changes made to a book's **Cover and/or Metadata** are only applied to how the book appears in the Calibre-Web UI, changing nothing in the ebook's files like you would expect
@@ -254,28 +255,33 @@ And that's you off to the races! 🥳 HOWEVER to avoid potential problems and en
 ### 1. Setup the container using the Docker Compose template below: 🐋📜
 
   ~~~ bash
-  ---
-  services:
-    calibre-web-automated:
-      image: crocodilestick/calibre-web-automated:latest
-      container_name: calibre-web-automated
-      environment:
-        # Only change these if you know what you're doing
-        - PUID=1000
-        - PGID=1000
-        # Edit to match your current timezone https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
-        - TZ=UTC
-      volumes:
-        # CW users migrating should stop their existing CW instance, make a copy of the config folder, and bind that here to carry over all of their user settings ect.
-        - /path/to/config/folder:/config
-        # This is an ingest dir, NOT a library one. Anything added here will be automatically added to your library according to the settings you have configured in CWA Settings page. All files placed here are REMOVED AFTER PROCESSING
-        - /path/to/the/folder/you/want/to/use/for/book/ingest:/cwa-book-ingest
-        # If you don't have an existing library, CWA will automatically create one at the bind provided here
-        - /path/to/your/calibre/library:/calibre-library
-      ports:
-        # Change the first number to change the port you want to access the Web UI, not the second
-        - 8083:8083
-      restart: unless-stopped
+---
+services:
+  calibre-web-automated:
+    image: crocodilestick/calibre-web-automated:latest
+    container_name: calibre-web-automated
+    environment:
+      # Only change these if you know what you're doing
+      - PUID=1000
+      - PGID=1000
+      # Edit to match your current timezone https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      - TZ=UTC
+      # Hardcover API Key required for Hardcover as a Metadata Provider, get one here: https://docs.hardcover.app/api/getting-started/
+      - HARDCOVER_TOKEN=your_hardcover_api_key_here
+    volumes:
+      # CW users migrating should stop their existing CW instance, make a copy of the config folder, and bind that here to carry over all of their user settings ect.
+      - /path/to/config/folder:/config 
+      # This is an ingest dir, NOT a library one. Anything added here will be automatically added to your library according to the settings you have configured in CWA Settings page. All files placed here are REMOVED AFTER PROCESSING
+      - /path/to/the/folder/you/want/to/use/for/book/ingest:/cwa-book-ingest
+      # If you don't have an existing library, CWA will automatically create one at the bind provided here
+      - /path/to/your/calibre/library:/calibre-library
+      # If you use calibre plugins, you can bind your plugins folder here to have CWA attempt to add them to it's workflow (WIP)
+      # If you are starting with a fresh install, you also need to copy plugins\..\customize.py.json to the corresponding docker location (the config path above + .config/calibre/customize.py.json)
+      - /path/to/your/calibre/plugins/folder:/config/.config/calibre/plugins
+    ports:
+      # Change the first number to change the port you want to access the Web UI, not the second
+      - 8083:8083 
+    restart: unless-stopped
   ~~~
 
 ### Explanation of the Container Bindings:

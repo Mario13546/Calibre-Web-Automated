@@ -1,4 +1,46 @@
 #!/bin/bash
+# shellcheck shell=bash
+
+# FROM lscio/docker-calibre-web - init-calibre-web-config.sh
+# create symlinks for imagemagick policy.xml
+rm -rf /etc/ImageMagick-6/policy.xml
+ln -s /defaults/policy.xml /etc/ImageMagick-6/policy.xml
+
+# create Google drive client_secrets.json file
+if [[ ! -f /config/client_secrets.json ]]; then
+    echo "{}" > /config/client_secrets.json
+fi
+
+# check if kepubify is present and if so make executable
+if [[ -f /usr/bin/kepubify ]] && [[ ! -x /usr/bin/kepubify ]]; then
+    chmod +x /usr/bin/kepubify
+fi
+
+# Pre-stage some files & directories for permissions purposes
+mkdir -p /app/calibre-web-automated/cps/cache
+
+# permissions
+chown -R abc:abc \
+    /config \
+    /app/calibre-web-automated/cps/cache
+
+export CALIBRE_DBPATH=/config
+
+if [[ ! -f /config/app.db ]]; then
+  echo "First time run, creating app.db..."
+  cd /app/calibre-web-automated && s6-setuidgid abc python3 /app/calibre-web-automated/cps.py -d > /dev/null 2>&1
+  # handle app.db updates for kepubify and ext binary path
+  # borrowed from crocodilestick because it's a better solution than what i was doing
+  sqlite3 /config/app.db <<EOS
+    update settings set config_kepubifypath='/usr/bin/kepubify' where config_kepubifypath is NULL or LENGTH(config_kepubifypath)=0;
+EOS
+
+  if [[ $? == 0 ]]; then
+    echo "Successfully set kepubify paths in '/config/app.db'!"
+  elif [[ $? > 0 ]]; then
+    echo "Could not set binary paths for '/config/app.db' (see errors above)."
+  fi
+fi
 
 #------------------------------------------------------------------------------------------------------------------------
 #  Make sure required directories exist
@@ -110,3 +152,74 @@ do
         echo "[cwa-init] Service could not successfully set permissions for '$d' (see errors above)."
     fi
 done
+
+#------------------------------------------------------------------------------------------------------------------------
+#  Qt6 / Kernel compatibility check (conditional ABI tag stripping)
+#------------------------------------------------------------------------------------------------------------------------
+
+MIN_KERNEL="5.4"
+HOST_KERNEL_RAW="$(uname -r)"
+HOST_KERNEL="${HOST_KERNEL_RAW%%-*}"
+
+version_ge() { [ "$(printf '%s\n' "$2" "$1" | sort -V | tail -n1)" = "$1" ]; }
+
+QT_SENTINEL="/app/calibre/.qt6_processed"
+if [ ! -f "$QT_SENTINEL" ]; then
+  if version_ge "$HOST_KERNEL" "$MIN_KERNEL"; then
+    echo "[cwa-init][qt6] Host kernel $HOST_KERNEL_RAW >= $MIN_KERNEL: leaving Qt6 libs intact for full functionality." \
+         "(PDF/WebEngine features enabled)"
+  else
+    echo "[cwa-init][qt6] Host kernel $HOST_KERNEL_RAW < $MIN_KERNEL: attempting legacy compatibility by stripping .note.ABI-tag." \
+         "(This does NOT guarantee full functionality.)"
+    if command -v strip >/dev/null 2>&1; then
+      any_stripped=0
+      for f in /app/calibre/lib/libQt6*.so*; do
+        [ -f "$f" ] || continue
+        if readelf -S "$f" 2>/dev/null | grep -q '.note.ABI-tag'; then
+          strip --remove-section=.note.ABI-tag "$f" 2>/dev/null || true
+          any_stripped=1
+        fi
+      done
+      if [ $any_stripped -eq 1 ]; then
+        echo "[cwa-init][qt6] ************************************* ATTENTION *************************************"
+        echo "[cwa-init][qt6] Stripped ABI note from some Qt6 libs. Features may still be limited on very old kernels. This will enable devices with kernels >= $MIN_KERNEL to run CWA however features that require Qt6 may not work as expected (e.g. working with PDF files).";
+      else
+        echo "[cwa-init][qt6] No ABI note sections found to strip (nothing changed).";
+      fi
+    else
+      echo "[cwa-init][qt6] 'strip' tool not available; cannot attempt ABI tag removal."
+    fi
+  fi
+  touch "$QT_SENTINEL"
+else
+  echo "[cwa-init][qt6] Qt6 compatibility confirmed; skipping."
+fi
+
+#------------------------------------------------------------------------------------------------------------------------
+#  Resolve and persist CWA version values once at container initialization
+#------------------------------------------------------------------------------------------------------------------------
+
+echo "[cwa-init] Resolving CWA versions (installed + latest stable) ..."
+
+# Installed version baked at build time
+export CWA_INSTALLED_VERSION="$(cat /app/CWA_RELEASE 2>/dev/null || echo 'V0.0.0')"
+
+# Latest stable release from GitHub (best-effort, fast timeout)
+if command -v jq >/dev/null 2>&1; then
+  CWA_STABLE_VERSION="$(
+    curl -sS --max-time 3 https://api.github.com/repos/crocodilestick/calibre-web-automated/releases/latest \
+      | jq -r '.tag_name' 2>/dev/null || true
+  )"
+else
+  # Fallback parse without jq
+  CWA_STABLE_VERSION="$(
+    curl -sS --max-time 3 https://api.github.com/repos/crocodilestick/calibre-web-automated/releases/latest \
+      | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1
+  )"
+fi
+export CWA_STABLE_VERSION="${CWA_STABLE_VERSION:-V0.0.0}"
+
+# Persist the resolved stable release for other services/processes
+printf '%s\n' "$CWA_STABLE_VERSION" > /app/CWA_STABLE_RELEASE || true
+
+echo "[cwa-init] Versions resolved: INSTALLED=$CWA_INSTALLED_VERSION, STABLE=$CWA_STABLE_VERSION"

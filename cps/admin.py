@@ -1,24 +1,9 @@
 # -*- coding: utf-8 -*-
-
-#  This file is part of the Calibre-Web (https://github.com/janeczku/calibre-web)
-#    Copyright (C) 2018-2019 OzzieIsaacs, cervinko, jkrehm, bodybybuddha, ok11,
-#                            andy29485, idalin, Kyosfonica, wuqi, Kennyl, lemmsh,
-#                            falgh1, grunjol, csitko, ytils, xybydy, trasba, vrabe,
-#                            ruben-herold, marblepebble, JackED42, SiphonSquirrel,
-#                            apetresc, nanu-c, mutschler, GammaC0de, vuolter
-#
-#  This program is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program. If not, see <http://www.gnu.org/licenses/>.
+# Calibre-Web Automated – fork of Calibre-Web
+# Copyright (C) 2018-2025 Calibre-Web contributors
+# Copyright (C) 2024-2025 Calibre-Web Automated contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+# See CONTRIBUTORS for full list of authors.
 
 import os
 import re
@@ -105,6 +90,24 @@ def admin_required(f):
 
 @admi.before_app_request
 def before_request():
+    # Safety net: if not configured but metadata.db now exists at default location, auto-set without redirect loop
+    if not config.db_configured:
+        try:
+            default_metadata = '/calibre-library/metadata.db'
+            if (not config.config_calibre_dir or not os.path.isfile(os.path.join(config.config_calibre_dir, 'metadata.db'))) \
+                    and os.path.isfile(default_metadata):
+                config.config_calibre_dir = os.path.dirname(default_metadata)
+                log.info('[autoconfig] Late-detected calibre library at %s; updating config and rebuilding db session', config.config_calibre_dir)
+                try:
+                    config.save()
+                except Exception as e:
+                    log.error('Failed to save late autoconfig: %s', e)
+                # Re-run calibre db setup so subsequent handlers see a configured DB
+                from . import db as _db, cli_param as _cli_param
+                _db.CalibreDB.update_config(config)
+                _db.CalibreDB.setup_db(config.config_calibre_dir, _cli_param.settings_path)
+        except Exception as e:
+            log.error('Autoconfig safety net error: %s', e)
     #try:
         #if not ub.check_user_session(current_user.id,
         #                             flask_session.get('_id')) and 'opds' not in request.path \
@@ -117,7 +120,13 @@ def before_request():
     g.allow_registration = config.config_public_reg
     g.allow_anonymous = config.config_anonbrowse
     g.allow_upload = config.config_uploading
-    g.current_theme = config.config_theme
+    # Use per-user theme if available; fallback to global config.config_theme for legacy/anonymous
+    try:
+        g.current_theme = getattr(current_user, 'theme', config.config_theme)
+        if current_user.is_anonymous and not hasattr(current_user, 'theme'):
+            g.current_theme = config.config_theme
+    except Exception:
+        g.current_theme = getattr(config, 'config_theme', 0)
     g.config_authors_max = config.config_authors_max
     if '/static/' not in request.path and not config.db_configured and \
         request.endpoint not in ('admin.ajax_db_config',
@@ -841,12 +850,10 @@ def add_restriction(res_type, user_id):
             usr = current_user
         if 'submit_allow' in element:
             usr.allowed_column_value = restriction_addition(element, usr.list_allowed_column_values)
-            ub.session_commit("Changed allowed columns of user {} to {}".format(usr.name,
-                                                                                usr.list_allowed_column_values()))
+            ub.session_commit("Changed allowed columns of user {} to {}".format(usr.name, usr.list_allowed_column_values()))
         elif 'submit_deny' in element:
             usr.denied_column_value = restriction_addition(element, usr.list_denied_column_values)
-            ub.session_commit("Changed denied columns of user {} to {}".format(usr.name,
-                                                                               usr.list_denied_column_values()))
+            ub.session_commit("Changed denied columns of user {} to {}".format(usr.name, usr.list_denied_column_values()))
     return ""
 
 
@@ -1968,6 +1975,12 @@ def _handle_new_user(to_save, content, languages, translations, kobo_support):
         content.sidebar_view |= constants.DETAIL_RANDOM
 
     content.role = constants.selected_roles(to_save)
+    # Set default theme (caliBlur = 1) for new users
+    try:
+        # Use global default theme config (acts as default for new users)
+        content.theme = getattr(config, 'config_theme', 1)
+    except Exception:
+        pass
     try:
         if not to_save["name"] or not to_save["email"] or not to_save["password"]:
             log.info("Missing entries on new user")
@@ -2050,6 +2063,14 @@ def _handle_edit_user(to_save, content, languages, translations, kobo_support):
             log.error(ex)
             flash(str(ex), category="error")
         return redirect(url_for('admin.admin'))
+    # Theme update for admin editing user
+    if 'theme' in to_save:
+        try:
+            theme_val = int(to_save.get('theme'))
+            if theme_val in (0,1):
+                content.theme = theme_val
+        except Exception:
+            pass
     else:
         if not ub.session.query(ub.User).filter(ub.User.role.op('&')(constants.ROLE_ADMIN) == constants.ROLE_ADMIN,
                                                 ub.User.id != content.id).count() and 'admin_role' not in to_save:

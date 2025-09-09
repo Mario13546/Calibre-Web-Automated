@@ -1,21 +1,9 @@
 # -*- coding: utf-8 -*-
-
-#  This file is part of the Calibre-Web (https://github.com/janeczku/calibre-web)
-#    Copyright (C) 2012-2019 mutschler, jkrehm, cervinko, janeczku, OzzieIsaacs, csitko
-#                            ok11, issmirnov, idalin
-#
-#  This program is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program. If not, see <http://www.gnu.org/licenses/>.
+# Calibre-Web Automated – fork of Calibre-Web
+# Copyright (C) 2018-2025 Calibre-Web contributors
+# Copyright (C) 2024-2025 Calibre-Web Automated contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+# See CONTRIBUTORS for full list of authors.
 
 import atexit
 import os
@@ -258,6 +246,8 @@ class User(UserBase, Base):
     view_settings = Column(JSON, default={})
     kobo_only_shelves_sync = Column(Integer, default=0)
     hardcover_token = Column(String, unique=True, default=None)
+    # New per-user theme (0=default/light, 1=caliBlur) replacing global-only behavior
+    theme = Column(Integer, default=0)
 
 
 if oauth_support:
@@ -643,6 +633,15 @@ def migrate_user_table(engine, _session):
         with engine.connect() as conn:
             trans = conn.begin()
             conn.execute(text("ALTER TABLE user ADD column 'hardcover_token' String"))
+            trans.commit()
+    # Migration for per-user theme column
+    try:
+        _session.query(exists().where(User.theme)).scalar()
+        _session.commit()
+    except exc.OperationalError:
+        with engine.connect() as conn:
+            trans = conn.begin()
+            conn.execute(text("ALTER TABLE user ADD column 'theme' Integer DEFAULT 0"))
             trans.commit()
 
 # Migrate database to current version, has to be updated after every database change. Currently migration from

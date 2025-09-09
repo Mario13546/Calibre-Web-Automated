@@ -26,7 +26,7 @@ SHELL ["/bin/bash", "-c"]
 ARG BUILD_DATE
 ARG VERSION
 ARG CALIBREWEB_RELEASE=0.6.24
-ARG CALIBRE_RELEASE=8.7.0
+ARG CALIBRE_RELEASE=8.8.0
 ARG KEPUBIFY_RELEASE=v4.0.4
 LABEL build_version="Version:- ${VERSION}"
 LABEL build_date="${BUILD_DATE}"
@@ -158,7 +158,7 @@ RUN \
       /calibre.txz -C \
       /app/calibre && \
   # STEP 6.4.1 - Remove the ABI tag from the extracted libQt6* files to allow them to be used on older kernels
-  strip --remove-section=.note.ABI-tag /app/calibre/lib/libQt6* && \
+    # Removed in V3.1.4 because it was breaking Calibre features that require Qt6. Replaced with a kernel check in the cwa-init service
   # STEP 6.5 - Delete the extracted calibre.txz to save space in final image
   rm /calibre.txz && \
 # STEP 7 - ADD files referencing the versions of the installed main packages

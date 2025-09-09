@@ -1,24 +1,9 @@
 # -*- coding: utf-8 -*-
-
-#  This file is part of the Calibre-Web (https://github.com/janeczku/calibre-web)
-#    Copyright (C) 2018-2019 OzzieIsaacs, cervinko, jkrehm, bodybybuddha, ok11,
-#                            andy29485, idalin, Kyosfonica, wuqi, Kennyl, lemmsh,
-#                            falgh1, grunjol, csitko, ytils, xybydy, trasba, vrabe,
-#                            ruben-herold, marblepebble, JackED42, SiphonSquirrel,
-#                            apetresc, nanu-c, mutschler
-#
-#  This program is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program. If not, see <http://www.gnu.org/licenses/>.
+# Calibre-Web Automated – fork of Calibre-Web
+# Copyright (C) 2018-2025 Calibre-Web contributors
+# Copyright (C) 2024-2025 Calibre-Web Automated contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+# See CONTRIBUTORS for full list of authors.
 
 import os
 from datetime import datetime, timezone
@@ -619,7 +604,7 @@ def do_edit_book(book_id, upload_formats=None):
             gdriveutils.updateGdriveCalibreFromLocal()
 
         if to_save.get("cover_url",):
-            if not current_user.role_upload():
+            if not current_user.role_edit():
                 edit_error = True
                 flash(_("User has no rights to upload cover"), category="error")
             if to_save["cover_url"].endswith('/static/generic_cover.jpg'):

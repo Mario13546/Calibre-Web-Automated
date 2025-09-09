@@ -1,20 +1,9 @@
 # -*- coding: utf-8 -*-
-
-#   This file is part of the Calibre-Web (https://github.com/janeczku/calibre-web)
-#     Copyright (C) 2019 OzzieIsaacs, pwr
-#
-#   This program is free software: you can redistribute it and/or modify
-#   it under the terms of the GNU General Public License as published by
-#   the Free Software Foundation, either version 3 of the License, or
-#   (at your option) any later version.
-#
-#   This program is distributed in the hope that it will be useful,
-#   but WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#   GNU General Public License for more details.
-#
-#   You should have received a copy of the GNU General Public License
-#   along with this program. If not, see <http://www.gnu.org/licenses/>.
+# Calibre-Web Automated – fork of Calibre-Web
+# Copyright (C) 2018-2025 Calibre-Web contributors
+# Copyright (C) 2024-2025 Calibre-Web Automated contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+# See CONTRIBUTORS for full list of authors.
 
 import sys
 import os
@@ -148,12 +137,12 @@ del env_CALIBRE_PORT
 
 EXTENSIONS_AUDIO = {'mp3', 'mp4', 'ogg', 'opus', 'wav', 'flac', 'm4a', 'm4b'}
 EXTENSIONS_CONVERT_FROM = ['pdf', 'epub', 'mobi', 'azw3', 'docx', 'rtf', 'fb2', 'lit', 'lrf',
-                           'txt', 'htmlz', 'rtf', 'odt', 'cbz', 'cbr', 'prc']
+                           'txt', 'htmlz', 'rtf', 'odt', 'cbz', 'cbr', 'prc', 'acsm']
 EXTENSIONS_CONVERT_TO = ['pdf', 'epub', 'mobi', 'azw3', 'docx', 'rtf', 'fb2',
                          'lit', 'lrf', 'txt', 'htmlz', 'rtf', 'odt']
 EXTENSIONS_UPLOAD = {'txt', 'pdf', 'epub', 'kepub', 'mobi', 'azw', 'azw3', 'cbr', 'cbz', 'cbt', 'cb7', 'djvu', 'djv',
                      'prc', 'doc', 'docx', 'fb2', 'html', 'rtf', 'lit', 'odt', 'mp3', 'mp4', 'ogg',
-                     'opus', 'wav', 'flac', 'm4a', 'm4b'}
+                     'opus', 'wav', 'flac', 'm4a', 'm4b', 'acsm'}
 
 _extension = ""
 if sys.platform == "win32":
@@ -173,8 +162,19 @@ def selected_roles(dictionary):
 BookMeta = namedtuple('BookMeta', 'file_path, extension, title, author, cover, description, tags, series, '
                                   'series_id, languages, publisher, pubdate, identifiers')
 
-# python build process likes to have x.y.zbw -> b for beta and w a counting number
-STABLE_VERSION =  '0.6.24'
+def _read_text(path: str, default: str = "") -> str:
+    try:
+        with open(path, 'r') as f:
+            return f.read().strip()
+    except Exception:
+        return default
+
+# Versions are resolved at container startup by cwa-init and provided via env and persisted files.
+# Avoid any network or slow I/O during module import.
+INSTALLED_VERSION = os.environ.get("CWA_INSTALLED_VERSION") or _read_text("/app/CWA_RELEASE", "V0.0.0")
+STABLE_VERSION = os.environ.get("CWA_STABLE_VERSION") or _read_text("/app/CWA_STABLE_RELEASE", "V0.0.0")
+
+USER_AGENT = f"Calibre-Web-Automated/{INSTALLED_VERSION}"
 
 NIGHTLY_VERSION = dict()
 NIGHTLY_VERSION[0] = '0af52f205358b0147ee3430f9e6c8fe007c0ea77'
